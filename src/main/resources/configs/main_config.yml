@@ -1,0 +1,30 @@
+player_break_speed: -5.0
+whitelisted_blocks:
+  - OAK_LEAVES
+  - SPRUCE_LEAVES
+  - BIRCH_LEAVES
+  - JUNGLE_LEAVES
+  - ACACIA_LEAVES
+  - DARK_OAK_LEAVES
+  - MANGROVE_LEAVES
+  - CHERRY_LEAVES
+  - AZALEA_LEAVES
+  - FLOWERING_AZALEA_LEAVES
+  - GRAVEL
+  - SAND
+modded_whitelisted_blocks:
+  STONE:
+    replace_with: COBBLESTONE
+    drops: "voidadditions:stone_pebble"
+    amount: 1
+    break_speed: 0.5
+  COBBLESTONE:
+    replace_with: GRAVEL
+    drops: "voidadditions:stone_pebble"
+    amount: 1
+    break_speed: 1
+  GRAVEL:
+    replace_with: AIR
+    drops: NOTHING
+    amount: 1
+    break_speed: 1.5

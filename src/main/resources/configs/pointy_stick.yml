@@ -1,0 +1,26 @@
+# The tool level
+tool_level: minecraft:wood
+# The tool category
+tool_category: minecraft:pickaxe
+# The block breaking speed
+break_speed: 0.01
+# 0-100
+drop_chance: 35
+# The attack damage
+attack_damage: 2
+# The attack speed
+attack_speed: 2.0
+# The knockback bonus
+knockback_bonus: 0
+# If sweep attacks can be performed with this tool
+can_sweep_attack: false
+# If this tool can break blocks in creative
+can_break_blocks_in_creative: true
+# The maximum durability of the item.
+max_durability: 4
+# The damage the item takes when it is used to attack an entity.
+item_damage_on_attack_entity: 2
+# The damage the item takes when it is used to break a block.
+item_damage_on_break_block: 1
+# The repair ingredient that can be used in anvils.
+repair_ingredient: "minecraft:stick"

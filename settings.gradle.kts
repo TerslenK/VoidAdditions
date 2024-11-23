@@ -1,4 +1,4 @@
-rootProject.name = "example" // TODO: Change this to your addon id
+rootProject.name = "void_additions" // TODO: Change this to your addon id
 
 dependencyResolutionManagement {
     repositories {
