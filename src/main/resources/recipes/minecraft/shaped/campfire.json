@@ -1,0 +1,13 @@
+{
+  "result": "minecraft:campfire[minecraft:block_state={lit:\"false\"}]",
+  "shape": [
+    " s ",
+    "sbs",
+    "ppp"
+  ],
+  "ingredients": {
+    "s": "minecraft:stick",
+    "b": "void_additions:oak_bark",
+    "p": "void_additions:stone_pebble"
+  }
+}

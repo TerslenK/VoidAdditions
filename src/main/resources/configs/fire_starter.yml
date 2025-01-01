@@ -1,0 +1,8 @@
+# The maximum durability of the item.
+max_durability: 8
+# The damage the item takes when it is used to attack an entity.
+item_damage_on_attack_entity: 1
+# The damage the item takes when it is used to break a block.
+item_damage_on_break_block: 1
+# The repair ingredient that can be used in anvils.
+repair_ingredient: "minecraft:stick"

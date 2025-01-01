@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 group = "io.github.terslenk.voidadditions" // TODO: Change this to your group
 version = "0.0 - DEVELOPMENT BUILD" // TODO: Change this to your addon version
 
@@ -17,33 +14,24 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle(libs.versions.paper)
+    paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
     implementation(libs.nova)
 }
 
-addon {
-    id = project.name
-    name = project.name.replaceFirstChar(Char::uppercase).replace("_a" ," A")
-    version = project.version.toString()
-    novaVersion = libs.versions.nova
-    main = "io.github.terslenk.voidadditions.VoidAdditions" // TODO: Change this to your main class
-    authors = listOf("TerslenK") // TODO: Set your list of authors
+tasks.withType<JavaExec> {
+    classpath = configurations.named("paperweightDevelopmentBundle").get()
 }
 
-tasks {
-    register<Copy>("addonJar") {
-        group = "build"
-        dependsOn("jar")
-        from(File(project.layout.buildDirectory.get().asFile, "libs/${project.name}-${project.version}.jar"))
-        into((project.findProperty("outDir") as? String)?.let(::File) ?: project.layout.buildDirectory.get().asFile)
-        rename { "${addonMetadata.get().addonName.get()} - v${project.version}.jar" }
-    }
+addon {
+    name = project.name.replaceFirstChar(Char::uppercase)
+    version = project.version.toString()
+    main = "io.github.terslenk.voidadditions.VoidAdditions" // TODO: Change this to your main class
+    authors = listOf("TerslenK")
     
-    withType<KotlinCompile> {
-        compilerOptions { 
-            jvmTarget = JvmTarget.JVM_21
-        }
-    }
+    // output directory for the generated addon jar is read from the "outDir" project property (-PoutDir="...")
+    val outDir = project.findProperty("outDir")
+    if (outDir is String)
+        destination.set(File(outDir))
 }
 
 afterEvaluate {
