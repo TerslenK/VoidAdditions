@@ -23,6 +23,7 @@ tasks.withType<JavaExec> {
 }
 
 addon {
+    dependency("Lands")
     name = project.name.replaceFirstChar(Char::uppercase)
     version = project.version.toString()
     main = "io.github.terslenk.voidadditions.VoidAdditions" // TODO: Change this to your main class
