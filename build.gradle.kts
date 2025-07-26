@@ -1,5 +1,5 @@
 group = "io.github.terslenk.voidadditions" // TODO: Change this to your group
-version = "0.0 - DEVELOPMENT BUILD" // TODO: Change this to your addon version
+version = "0.1-dev" // TODO: Change this to your addon version
 
 plugins {
     alias(libs.plugins.kotlin)
@@ -14,20 +14,15 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle(libs.versions.paper)
     implementation(libs.nova)
 }
 
-tasks.withType<JavaExec> {
-    classpath = configurations.named("paperweightDevelopmentBundle").get()
-}
-
 addon {
-    dependency("Lands")
-    name = project.name.replaceFirstChar(Char::uppercase)
-    version = project.version.toString()
-    main = "io.github.terslenk.voidadditions.VoidAdditions" // TODO: Change this to your main class
-    authors = listOf("TerslenK")
+    name.set(project.name)
+    version.set(project.version.toString())
+    main.set("io.github.terslenk.voidadditions.VoidAdditions") // TODO: Change this to your main class
+    authors.set(listOf("TerslenK"))
     
     // output directory for the generated addon jar is read from the "outDir" project property (-PoutDir="...")
     val outDir = project.findProperty("outDir")

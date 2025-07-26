@@ -1,7 +1,6 @@
 package io.github.terslenk.voidadditions.implementations.behaviors
 
-import io.github.terslenk.voidadditions.implementations.utils.VoidUtils
-import org.bukkit.Material
+import io.github.terslenk.voidadditions.implementations.registry.VoidUtils
 import org.bukkit.attribute.Attribute
 import org.bukkit.block.Block
 import org.bukkit.entity.Player
@@ -10,13 +9,13 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import xyz.xenondevs.commons.provider.Provider
-import xyz.xenondevs.nova.util.dropItem
-import xyz.xenondevs.nova.util.item.ItemUtils
 import xyz.xenondevs.nova.world.item.NovaItem
 import xyz.xenondevs.nova.world.item.behavior.ItemBehavior
 import xyz.xenondevs.nova.world.item.behavior.ItemBehaviorFactory
 import xyz.xenondevs.nova.world.player.WrappedPlayerInteractEvent
+import java.util.UUID
 import kotlin.math.round
+import kotlin.uuid.Uuid
 
 class CavemanTool : ItemBehavior {
     
@@ -42,12 +41,7 @@ class CavemanTool : ItemBehavior {
         itemStack: ItemStack,
         action: Action,
         wrappedEvent: WrappedPlayerInteractEvent
-    ) {
-        // Placeholder for future interactions
-        if (action.isRightClick) {
-            println("Loaded Config: $whitelistedBlocks")
-        }
-    }
+    ) {}
     
     /**
      * Handles block breaking events. Replaces blocks based on the configuration.
@@ -59,8 +53,9 @@ class CavemanTool : ItemBehavior {
         if (properties != null) {
             val replaceWith = properties["replace_with"]
             val dropItem = properties["drop_item"]
+            val chance: Int = properties["chance"]?.toInt() ?: 100
             if (replaceWith != null && dropItem != null) {
-                handleBlockReplacement(event, blockType, replaceWith, dropItem)
+                VoidUtils.handleBlockReplacement(event, replaceWith, dropItem, chance)
             }
         }
         itemStack.damage(1, player)
@@ -68,41 +63,18 @@ class CavemanTool : ItemBehavior {
     
     override fun modifyBlockDamage(player: Player, itemStack: ItemStack, block: Block, damage: Double): Double {
         val target = player.getTargetBlock(null, round(player.getAttribute(Attribute.BLOCK_INTERACTION_RANGE)?.value ?: 7.0).toInt()).type.name.uppercase()
-        
-        return if (whitelistedBlocks.contains(target)) {
-            whitelistedBlocks[target]?.get("break_speed")?.toDouble()?.div(25) ?: damage
+        player.sendMessage(whitelistedBlocks.toString())
+
+        return if (whitelistedBlocks[target] != null) {
+            when (whitelistedBlocks[target]?.get("break_speed")) {
+                "default" -> {
+                    damage
+                } else -> {
+                0.05
+            }
+            }
         } else {
             -1.0
-        }
-    }
-    
-    /**
-     * Handles the replacement logic for blocks.
-     */
-    private fun handleBlockReplacement(event: BlockBreakEvent, blockType: String, replaceWith: String, dropItem: String) {
-        val player = event.player // Get the player who broke the block
-        val location = event.block.location // Get the block's location
-        
-        when (replaceWith.uppercase()) {
-            "NOTHING" -> {
-                println("Block $blockType will drop naturally.")
-                // Play the breaking sound of the original block
-                player.playSound(location, event.block.blockData.soundGroup.breakSound, 1.0f, 1.0f)
-            }
-            else -> {
-                val newBlockType = Material.matchMaterial(replaceWith)
-                if (newBlockType != null) {
-                    event.isCancelled = true
-                    event.block.type = newBlockType
-                    event.block.location.dropItem(ItemUtils.getItemStack(dropItem))
-                    
-                    // Play the breaking sound of the original block
-                    player.playSound(location, event.block.blockData.soundGroup.breakSound, 1.0f, 1.0f)
-                    println("Replaced $blockType with $newBlockType")
-                } else {
-                    println("Invalid replacement block type: $replaceWith")
-                }
-            }
         }
     }
 }

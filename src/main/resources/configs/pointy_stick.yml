@@ -6,47 +6,30 @@ item_damage_on_attack_entity: 2
 item_damage_on_break_block: 1
 # The repair ingredient that can be used in anvils.
 repair_ingredient: "minecraft:stick"
+#burn time
+burn_time: 0.25
 # wowzers
 whitelisted_blocks:
   STONE:
     replace_with: COBBLESTONE
     drop_item: "void_additions:stone_pebble"
-    break_speed: 0.15
+    chance: 100
+    break_speed: 8
   COBBLESTONE:
     replace_with: GRAVEL
     drop_item: "void_additions:stone_pebble"
-    break_speed: 0.25
+    chance: 100
+    break_speed: 6
   GRAVEL:
     replace_with: NOTHING
+    break_speed: 6
   OAK_LOG:
     replace_with: STRIPPED_OAK_LOG
-    drop_item: "void_additions:oak_bark"
-    break_speed: 0.3
-  SPRUCE_LOG:
-    replace_with: STRIPPED_SPRUCE_LOG
-    drop_item: "void_additions:spruce_bark"
-    break_speed: 0.3
-  BIRCH_LOG:
-    replace_with: STRIPPED_BIRCH_LOG
-    drop_item: "void_additions:birch_bark"
-    break_speed: 0.3
-  JUNGLE_LOG:
-    replace_with: STRIPPED_JUNGLE_LOG
-    drop_item: "void_additions:jungle_bark"
-    break_speed: 0.3
-  ACACIA_LOG:
-    replace_with: STRIPPED_ACACIA_LOG
-    drop_item: "void_additions:acacia_bark"
-    break_speed: 0.3
-  DARK_OAK_LOG:
-    replace_with: STRIPPED_DARK_OAK_LOG
-    drop_item: "void_additions:dark_oak_bark"
-    break_speed: 0.3
-  MANGROVE_LOG:
-    replace_with: STRIPPED_MANGROVE_LOG
-    drop_item: "void_additions:oak_bark"
-    break_speed: 0.3
-  CHERRY_LOG:
-    replace_with: STRIPPED_CHERRY_LOG
-    drop_item: "void_additions:cherry_bark"
-    break_speed: 0.3
+    drop_item: "minecraft:stick"
+    chance: 100
+    break_speed: 6
+  STRIPPED_OAK_LOG:
+    replace_with: STRIPPED_OAK_LOG
+    drop_item: "minecraft:stick"
+    chance: 100
+    break_speed: 5

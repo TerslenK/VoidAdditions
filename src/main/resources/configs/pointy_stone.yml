@@ -11,42 +11,23 @@ whitelisted_blocks:
   STONE:
     replace_with: COBBLESTONE
     drop_item: "void_additions:stone_pebble"
-    break_speed: 0.2
+    chance: 100
+    break_speed: 6
   COBBLESTONE:
     replace_with: GRAVEL
     drop_item: "void_additions:stone_pebble"
-    break_speed: 0.3
+    chance: 100
+    break_speed: 5
   GRAVEL:
     replace_with: NOTHING
+    break_speed: 4
   OAK_LOG:
     replace_with: STRIPPED_OAK_LOG
-    drop_item: "void_additions:oak_bark"
-    break_speed: 0.4
-  SPRUCE_LOG:
-    replace_with: STRIPPED_SPRUCE_LOG
-    drop_item: "void_additions:spruce_bark"
-    break_speed: 0.4
-  BIRCH_LOG:
-    replace_with: STRIPPED_BIRCH_LOG
-    drop_item: "void_additions:birch_bark"
-    break_speed: 0.4
-  JUNGLE_LOG:
-    replace_with: STRIPPED_JUNGLE_LOG
-    drop_item: "void_additions:jungle_bark"
-    break_speed: 0.4
-  ACACIA_LOG:
-    replace_with: STRIPPED_ACACIA_LOG
-    drop_item: "void_additions:acacia_bark"
-    break_speed: 0.4
-  DARK_OAK_LOG:
-    replace_with: STRIPPED_DARK_OAK_LOG
-    drop_item: "void_additions:dark_oak_bark"
-    break_speed: 0.4
-  MANGROVE_LOG:
-    replace_with: STRIPPED_MANGROVE_LOG
-    drop_item: "void_additions:oak_bark"
-    break_speed: 0.4
-  CHERRY_LOG:
-    replace_with: STRIPPED_CHERRY_LOG
-    drop_item: "void_additions:cherry_bark"
-    break_speed: 0.4
+    drop_item: "minecraft:stick"
+    chance: 100
+    break_speed: 4
+  STRIPPED_OAK_LOG:
+    replace_with: STRIPPED_OAK_LOG
+    drop_item: "minecraft:stick"
+    chance: 100
+    break_speed: 3
