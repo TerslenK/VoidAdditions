@@ -1,5 +1,5 @@
 {
-  "parent": "item/bow",
+  "parent": "item/crossbow",
   "textures": {
     "layer0": "void_additions:item/custom_crossbow/crossbow_standby"
   }

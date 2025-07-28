@@ -1,0 +1,6 @@
+{
+  "parent": "item/shield",
+  "textures": {
+    "layer0": "void_additions:item/custom_shield_base"
+  }
+}

@@ -8,13 +8,19 @@ import io.github.terslenk.voidadditions.VoidAdditions.registerItem
 import io.github.terslenk.voidadditions.implementations.abilities.LimitedMiningAbility
 import io.github.terslenk.voidadditions.implementations.behaviors.CavemanTool
 import io.github.terslenk.voidadditions.implementations.behaviors.CrossbowBehavior
-import io.github.terslenk.voidadditions.implementations.behaviors.CustomBowBehavior
+import io.github.terslenk.voidadditions.implementations.behaviors.BowBehavior
+import io.papermc.paper.registry.keys.SoundEventKeys
+import org.bukkit.enchantments.Enchantment
+import org.bukkit.inventory.RecipeChoice
+import xyz.xenondevs.commons.provider.Provider
 import xyz.xenondevs.nova.initialize.Init
 import xyz.xenondevs.nova.initialize.InitStage
 import xyz.xenondevs.nova.resources.builder.layout.item.ConditionItemModelProperty
 import xyz.xenondevs.nova.resources.builder.layout.item.RangeDispatchItemModelProperty
 import xyz.xenondevs.nova.world.item.behavior.Damageable
+import xyz.xenondevs.nova.world.item.behavior.Enchantable
 import xyz.xenondevs.nova.world.item.behavior.Fuel
+import xyz.xenondevs.nova.world.item.behavior.Shield
 
 // Items
 @Init(stage = InitStage.PRE_PACK)
@@ -54,7 +60,7 @@ object VoidItems {
             }
         }
         behaviors(
-            CustomBowBehavior
+            BowBehavior, Damageable(), Enchantable(), Fuel()
         )
         maxStackSize(1)
     }
@@ -71,7 +77,19 @@ object VoidItems {
             }
         }
         behaviors(
-            CrossbowBehavior
+            CrossbowBehavior, Damageable(), Enchantable(), Fuel()
+        )
+        maxStackSize(1)
+    }
+
+    val CUSTOM_SHIELD = VoidAdditions.item("custom_shield") {
+        modelDefinition {
+            model = shieldSpecialModel {
+
+            }
+        }
+        behaviors(
+            Shield(), Damageable(), Enchantable(), Fuel()
         )
         maxStackSize(1)
     }

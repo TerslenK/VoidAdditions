@@ -1,0 +1,82 @@
+# Damageable Options
+durability: 128
+item_damage_on_attack_entity: 1
+item_damage_on_break_block: 1
+repair_ingredient: "minecraft:string"
+
+# Fuel Option
+burn_time: 30
+
+# Shield Option
+block_delay: 0
+disable_cooldown_scale: 1.0
+damage_reductions:
+  # Mob saldırıları
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: MOB_ATTACK
+
+  # Oyuncu saldırıları
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: PLAYER_ATTACK
+
+  # Ok saldırıları
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: ARROW
+
+  # Mob mermileri (ghast fireball, blaze fireball vb.)
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: MOB_PROJECTILE
+
+  # Üçlü mızrak
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: TRIDENT
+
+  # Fırlatılan itemler (snowball, egg vb.)
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: THROWN
+
+  # Havai fişek
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: FIREWORKS
+
+  # Wither kafası
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 180
+    type: WITHER_SKULL
+
+  # Patlamalar - her yönden korunur
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 360  # Her yönden
+    type: EXPLOSION
+
+  # Creeper patlaması (player_explosion genelde creeper için)
+  - base: 0
+    factor: 1.0                    # %100 blok
+    horizontal_blocking_angle: 360  # Her yönden
+    type: PLAYER_EXPLOSION
+item_damage:
+  threshold: 1.0f
+  base: 1.0f
+  factor: 0.2f
+
+# Enchantable Options
+enchantment_value: 14
+supported_enchantments:
+  - "minecraft:unbreaking"
+  - "minecraft:mending"

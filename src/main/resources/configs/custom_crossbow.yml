@@ -1,0 +1,15 @@
+# Damageable Options
+durability: 512
+item_damage_on_attack_entity: 1
+item_damage_on_break_block: 1
+repair_ingredient: "minecraft:tripwire_hook"
+# Fuel Option
+burn_time: 60
+# Enchantable Options
+enchantment_value: 14
+supported_enchantments:
+  - "minecraft:quick_charge"
+  - "minecraft:multishot"
+  - "minecraft:piercing"
+  - "minecraft:unbreaking"
+  - "minecraft:mending"

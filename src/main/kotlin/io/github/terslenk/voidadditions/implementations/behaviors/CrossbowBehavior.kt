@@ -1,5 +1,8 @@
 package io.github.terslenk.voidadditions.implementations.behaviors
 
+import io.github.terslenk.voidadditions.VoidAdditions
+import io.github.terslenk.voidadditions.implementations.registry.ProjectileTypes
+import io.github.terslenk.voidadditions.implementations.registry.VoidUtils
 import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.datacomponent.item.Consumable
 import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation
@@ -10,304 +13,222 @@ import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.enchantments.Enchantment
-import org.bukkit.entity.AbstractArrow
-import org.bukkit.entity.Arrow
-import org.bukkit.entity.Player
-import org.bukkit.entity.SpectralArrow
+import org.bukkit.entity.*
 import org.bukkit.event.block.Action
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.FireworkMeta
 import org.bukkit.inventory.meta.PotionMeta
-import org.bukkit.inventory.meta.CrossbowMeta
+import org.bukkit.scheduler.BukkitTask
 import xyz.xenondevs.nova.network.event.serverbound.ServerboundPlayerActionPacketEvent
-import xyz.xenondevs.nova.util.playSoundNearby
+import xyz.xenondevs.nova.util.Key
+import xyz.xenondevs.nova.util.item.retrieveData
+import xyz.xenondevs.nova.util.item.storeData
 import xyz.xenondevs.nova.util.runTask
 import xyz.xenondevs.nova.util.runTaskTimer
 import xyz.xenondevs.nova.world.item.NovaItem
 import xyz.xenondevs.nova.world.item.behavior.ItemBehavior
 import xyz.xenondevs.nova.world.item.behavior.ItemBehaviorFactory
 import xyz.xenondevs.nova.world.player.WrappedPlayerInteractEvent
-import java.util.*
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+
+private val CHARGE_KEY = Key(VoidAdditions, "charge_status")
+private val STORED_ARROW_KEY = Key(VoidAdditions, "stored_arrow")
 
 class CrossbowBehavior : ItemBehavior {
-
-    private val playerTimers = mutableMapOf<UUID, Long>()
-    private val chargedCrossbows = mutableMapOf<UUID, ItemStack>() // Store charged arrow info
+    private val playerTimers = ConcurrentHashMap<UUID, Long>()
+    private val chargeTasks = ConcurrentHashMap<UUID, BukkitTask>()
 
     companion object : ItemBehaviorFactory<CrossbowBehavior> {
-        private const val CHARGE_TIME_MS = 1250L // 1.25 seconds like vanilla
+        private const val MAX_CHARGE_TIME_MS = 2000L
+        private const val CROSSBOW_POWER = 3.15
 
-        override fun create(item: NovaItem): CrossbowBehavior {
-            return CrossbowBehavior()
+        private val CHARGING_CONSUMABLE = Consumable.consumable()
+            .animation(ItemUseAnimation.CROSSBOW)
+            .sound(SoundEventKeys.INTENTIONALLY_EMPTY)
+            .consumeSeconds(Float.MAX_VALUE)
+            .hasConsumeParticles(false)
+            .build()
+
+        override fun create(item: NovaItem): CrossbowBehavior = CrossbowBehavior()
+    }
+
+    override fun handleEquip(player: Player, itemStack: ItemStack, slot: EquipmentSlot, equipped: Boolean, event: EntityEquipmentChangedEvent) {
+        if (equipped && getProjectileData(itemStack) == null) {
+            setProjectileData(itemStack, ProjectileTypes.NONE)
+            player.inventory.setItem(slot, itemStack)
         }
     }
 
-    override fun handleInteract(
-        player: Player,
-        itemStack: ItemStack,
-        action: Action,
-        wrappedEvent: WrappedPlayerInteractEvent
-    ) {
-        if (action.isRightClick) {
-            val isCharged = isChargedCrossbow(itemStack)
+    override fun handleInteract(player: Player, itemStack: ItemStack, action: Action, wrappedEvent: WrappedPlayerInteractEvent) {
+        if (!action.isRightClick) return
 
-            if (isCharged) {
-                // Fire the crossbow
-                fireCrossbow(player, itemStack)
-            } else {
-                // Start charging
-                val arrowItem = getArrow(player)
-                val isCreative = player.gameMode == GameMode.CREATIVE
+        val projectileType = getProjectileData(itemStack) ?: ProjectileTypes.NONE
+        val playerId = player.uniqueId
 
-                if (arrowItem != null || isCreative) {
-                    startCharging(player, itemStack)
-                }
-            }
+        if (projectileType != ProjectileTypes.NONE) {
+            cancelChargeTask(playerId)
+            fireCrossbow(player, itemStack, projectileType)
+            return
         }
-    }
 
-    override fun handleEquip(
-        player: Player,
-        itemStack: ItemStack,
-        slot: EquipmentSlot,
-        equipped: Boolean,
-        event: EntityEquipmentChangedEvent
-    ) {
-        val isCharged = isChargedCrossbow(itemStack)
-        val hasArrow = getArrow(player) != null
+        if (playerTimers.containsKey(playerId)) return
 
-        if (!isCharged && !hasArrow) {
-            player.inventory.getItem(slot).unsetData(DataComponentTypes.CONSUMABLE)
-        } else if (!isCharged) {
-            // Can charge
-            player.inventory.getItem(slot).setData(DataComponentTypes.CONSUMABLE, Consumable.consumable()
-                .animation(ItemUseAnimation.CROSSBOW)
-                .sound(SoundEventKeys.INTENTIONALLY_EMPTY)
-                .consumeSeconds(Float.MAX_VALUE)
-                .hasConsumeParticles(false)
-                .build())
+        if (VoidUtils.getArrow(player, "CROSSBOW") != null) {
+            startCharging(player, itemStack)
         }
     }
 
     override fun handleRelease(player: Player, itemStack: ItemStack, event: ServerboundPlayerActionPacketEvent) {
         if (event.action != ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM) return
-
-        val startTime = playerTimers[player.uniqueId] ?: return
-        val currentTime = System.currentTimeMillis()
-        val chargeTime = currentTime - startTime
-
-        if (chargeTime >= CHARGE_TIME_MS) {
-            // Successfully charged
-            completeCharging(player, itemStack)
-        } else {
-            // Released too early, play fail sound
-            player.location.playSoundNearby(Sound.ITEM_CROSSBOW_LOADING_END, 0.5f, 1.2f)
-        }
-
-        playerTimers.remove(player.uniqueId)
+        val playerId = player.uniqueId
+        playerTimers.remove(playerId)
+        cancelChargeTask(playerId)
+        stopCharging(player, itemStack)
     }
 
     private fun startCharging(player: Player, itemStack: ItemStack) {
-        playerTimers[player.uniqueId] = System.currentTimeMillis()
-        player.location.playSoundNearby(Sound.ITEM_CROSSBOW_LOADING_START, 1f, 1f)
+        val playerId = player.uniqueId
+        val startTime = System.currentTimeMillis()
 
-        // Schedule charging sounds
-        runTaskTimer(4L,0L){ // 0.2 seconds
+        itemStack.setData(DataComponentTypes.CONSUMABLE, CHARGING_CONSUMABLE)
+        player.updateInventory()
+        playerTimers[playerId] = startTime
 
-            if (playerTimers.containsKey(player.uniqueId)) {
-                player.location.playSoundNearby(Sound.ITEM_CROSSBOW_LOADING_MIDDLE, 1f, 1f)
+        val task = runTaskTimer(0, 10) {
+            if (playerTimers[playerId] != startTime) {
+                chargeTasks.remove(playerId)
+                return@runTaskTimer
+            }
+
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed >= MAX_CHARGE_TIME_MS) {
+                chargeTasks.remove(playerId)
+                playerTimers.remove(playerId)
+                stopCharging(player, itemStack)
+
+                loadProjectile(player, itemStack)
+                val projectileType = getProjectileData(itemStack) ?: ProjectileTypes.NONE
+                if (projectileType != ProjectileTypes.NONE) {
+                    fireCrossbow(player, itemStack, projectileType)
+                }
             }
         }
+
+        chargeTasks[playerId] = task
     }
 
-    private fun completeCharging(player: Player, itemStack: ItemStack) {
-        val arrowItem = getArrow(player)
-        val isCreative = player.gameMode == GameMode.CREATIVE
-
-        if (arrowItem == null && !isCreative) return
-
-        // Store the charged arrow
-        val chargedArrow = arrowItem ?: ItemStack(Material.ARROW)
-        chargedCrossbows[player.uniqueId] = chargedArrow.clone()
-
-        // Remove arrow from inventory (unless creative or infinity)
-        val shouldConsume = player.gameMode == GameMode.SURVIVAL && !itemStack.enchantments.contains(Enchantment.INFINITY)
-        if (shouldConsume) {
-            removeArrow(player, true)
-        }
-
-        // Update crossbow meta to show it's charged
-        updateCrossbowMeta(itemStack, chargedArrow)
-
-        player.location.playSoundNearby(Sound.ITEM_CROSSBOW_LOADING_END, 1f, 1f)
+    private fun stopCharging(player: Player, itemStack: ItemStack) {
+        itemStack.unsetData(DataComponentTypes.CONSUMABLE)
+        runTask { player.updateInventory() }
     }
 
-    private fun fireCrossbow(player: Player, itemStack: ItemStack) {
-        val chargedArrow = chargedCrossbows[player.uniqueId] ?: return
+    private fun loadProjectile(player: Player, itemStack: ItemStack) {
+        val arrow = VoidUtils.getArrow(player, "CROSSBOW") ?: return
+        val shouldConsume = player.gameMode == GameMode.SURVIVAL
+        if (!VoidUtils.removeArrow(player, arrow, "CROSSBOW", shouldConsume)) return
+
+        setStoredArrow(itemStack, arrow)
+        val projectileType = getProjectileTypeFromMaterial(arrow.type)
+        setProjectileData(itemStack, projectileType)
 
         runTask {
-            val arrow: AbstractArrow = when (chargedArrow.type) {
-                Material.SPECTRAL_ARROW -> player.launchProjectile(SpectralArrow::class.java)
-                Material.TIPPED_ARROW -> {
-                    val tippedArrowItem = ItemStack(Material.TIPPED_ARROW)
-                    val arrowMeta = chargedArrow.itemMeta as? PotionMeta
-                    tippedArrowItem.itemMeta = arrowMeta
+            player.world.playSound(player.location, Sound.ITEM_CROSSBOW_LOADING_END, 1.0f, 1.0f)
+            player.sendMessage("Loaded ${projectileType.name.lowercase().replace('_', ' ')}")
+        }
+    }
 
-                    val tipped = player.launchProjectile(Arrow::class.java)
+    private fun fireCrossbow(player: Player, itemStack: ItemStack, projectileType: ProjectileTypes) {
+        val storedArrow = getStoredArrow(itemStack)
+        val multishot = itemStack.itemMeta?.getEnchantLevel(Enchantment.MULTISHOT) ?: 0
 
-                    try {
-                        tipped.itemStack = tippedArrowItem
-                    } catch (e: Exception) {
-                        arrowMeta?.let { meta ->
-                            meta.customEffects.forEach { effect ->
-                                tipped.addCustomEffect(effect, true)
-                            }
-                            meta.basePotionType?.let { tipped.basePotionType = it }
-                        }
-                    }
-                    tipped
+        runTask {
+            if (multishot > 0) {
+                for (i in -1..1) {
+                    val yawOffset = i * 5.0
+                    fireProjectileWithOffset(player, projectileType, storedArrow, yawOffset, itemStack)
                 }
-                else -> player.launchProjectile(Arrow::class.java)
+            } else {
+                fireProjectileWithOffset(player, projectileType, storedArrow, 0.0, itemStack)
             }
-
-            // Crossbow fires with more power than bow
-            arrow.velocity = player.location.direction.multiply(3.15)
-            arrow.shooter = player
-            arrow.pickupStatus = AbstractArrow.PickupStatus.ALLOWED
-
-            // Apply multishot if present
-            val multishotLevel = itemStack.enchantments[Enchantment.MULTISHOT] ?: 0
-            if (multishotLevel > 0) {
-                // Fire additional arrows at slight angles
-                val leftArrow = createMultishotArrow(player, chargedArrow, -10.0)
-                val rightArrow = createMultishotArrow(player, chargedArrow, 10.0)
-                leftArrow.pickupStatus = AbstractArrow.PickupStatus.CREATIVE_ONLY
-                rightArrow.pickupStatus = AbstractArrow.PickupStatus.CREATIVE_ONLY
-            }
-
-            player.location.playSoundNearby(Sound.ITEM_CROSSBOW_SHOOT, 1f, 1f)
+            player.world.playSound(player.location, Sound.ITEM_CROSSBOW_SHOOT, 1.0f, 1.0f)
         }
 
-        // Clear charged state
-        chargedCrossbows.remove(player.uniqueId)
-        clearCrossbowMeta(itemStack)
+        clearCrossbowState(itemStack)
+        player.sendMessage("Fired ${projectileType.name.lowercase().replace('_', ' ')}")
     }
 
-    private fun createMultishotArrow(player: Player, arrowItem: ItemStack, angleOffset: Double): AbstractArrow {
-        val arrow: AbstractArrow = when (arrowItem.type) {
-            Material.SPECTRAL_ARROW -> player.launchProjectile(SpectralArrow::class.java)
-            Material.TIPPED_ARROW -> {
-                val tipped = player.launchProjectile(Arrow::class.java)
-                val arrowMeta = arrowItem.itemMeta as? PotionMeta
-                arrowMeta?.let { meta ->
-                    meta.customEffects.forEach { effect ->
-                        tipped.addCustomEffect(effect, true)
-                    }
-                    meta.basePotionType?.let { tipped.basePotionType = it }
-                }
-                tipped
-            }
-            else -> player.launchProjectile(Arrow::class.java)
+    private fun fireProjectileWithOffset(player: Player, type: ProjectileTypes, storedArrow: ItemStack?, yawOffset: Double, itemStack: ItemStack) {
+        val loc = player.location.clone()
+        loc.yaw += yawOffset.toFloat()
+        val direction = loc.direction
+
+        val proj = when (type) {
+            ProjectileTypes.ARROW, ProjectileTypes.TIPPED_ARROW -> player.launchProjectile(Arrow::class.java, direction)
+            ProjectileTypes.SPECTRAL_ARROW -> player.launchProjectile(SpectralArrow::class.java, direction)
+            ProjectileTypes.FIREWORK_ROCKET -> player.launchProjectile(Firework::class.java, direction)
+            else -> return
         }
 
-        // Calculate angled direction
-        val direction = player.location.direction
-        val yaw = Math.toRadians(angleOffset)
-        val cos = kotlin.math.cos(yaw)
-        val sin = kotlin.math.sin(yaw)
-
-        val newX = direction.x * cos - direction.z * sin
-        val newZ = direction.x * sin + direction.z * cos
-
-        direction.x = newX
-        direction.z = newZ
-
-        arrow.velocity = direction.multiply(3.15)
-        arrow.shooter = player
-
-        return arrow
-    }
-
-    override fun modifyClientSideStack(player: Player?, server: ItemStack, client: ItemStack): ItemStack {
-        return client.withType(Material.CROSSBOW)
-    }
-
-    private fun isChargedCrossbow(itemStack: ItemStack): Boolean {
-        val meta = itemStack.itemMeta as? CrossbowMeta ?: return false
-        return meta.hasChargedProjectiles()
-    }
-
-    private fun updateCrossbowMeta(itemStack: ItemStack, arrowItem: ItemStack) {
-        val meta = itemStack.itemMeta as? CrossbowMeta ?: return
-        meta.setChargedProjectiles(listOf(arrowItem))
-        itemStack.itemMeta = meta
-    }
-
-    private fun clearCrossbowMeta(itemStack: ItemStack) {
-        val meta = itemStack.itemMeta as? CrossbowMeta ?: return
-        meta.setChargedProjectiles(listOf())
-        itemStack.itemMeta = meta
-    }
-
-    private fun getArrow(player: Player): ItemStack? {
-        val inv = player.inventory
-
-        // Check offhand first
-        val offhandItem = inv.itemInOffHand
-        if (isArrow(offhandItem)) {
-            val cloned = offhandItem.clone()
-            cloned.amount = 1
-            return cloned
-        }
-
-        // Then check main inventory
-        for (i in 0 until inv.size) {
-            val item = inv.getItem(i) ?: continue
-            if (!isArrow(item)) continue
-
-            val cloned = item.clone()
-            cloned.amount = 1
-            return cloned
-        }
-
-        return null
-    }
-
-    private fun removeArrow(player: Player, remove: Boolean): Boolean {
-        val inv = player.inventory
-
-        // Check offhand first
-        val offhandItem = inv.itemInOffHand
-        if (isArrow(offhandItem)) {
-            if (remove) {
-                offhandItem.amount -= 1
-                if (offhandItem.amount <= 0) {
-                    inv.setItemInOffHand(null)
+        when (proj) {
+            is AbstractArrow -> {
+                configureArrow(proj, itemStack)
+                if (type == ProjectileTypes.TIPPED_ARROW && storedArrow?.itemMeta is PotionMeta) {
+                    proj.itemStack = ItemStack(Material.TIPPED_ARROW).apply { itemMeta = storedArrow.itemMeta }
                 }
             }
-            return true
-        }
-
-        // Then check main inventory
-        for (i in 0 until inv.size) {
-            val item = inv.getItem(i) ?: continue
-            if (!isArrow(item)) continue
-
-            if (remove) {
-                item.amount -= 1
-                if (item.amount <= 0) {
-                    inv.setItem(i, null)
+            is Firework -> {
+                setFireworkVelocity(proj)
+                if (storedArrow?.itemMeta is FireworkMeta) {
+                    proj.fireworkMeta = storedArrow.itemMeta as FireworkMeta
                 }
             }
-            return true
         }
-
-        return false
     }
 
-    private fun isArrow(item: ItemStack): Boolean {
-        return item.type == Material.ARROW ||
-                item.type == Material.TIPPED_ARROW ||
-                item.type == Material.SPECTRAL_ARROW
+    private fun configureArrow(arrow: AbstractArrow, itemStack: ItemStack) {
+        setArrowVelocity(arrow)
+        arrow.pickupStatus = AbstractArrow.PickupStatus.CREATIVE_ONLY
+
+        val piercing = itemStack.itemMeta?.getEnchantLevel(Enchantment.PIERCING) ?: 0
+        if (piercing > 0 && arrow is Arrow) {
+            arrow.pierceLevel = piercing
+        }
     }
+
+    private fun setArrowVelocity(arrow: AbstractArrow) {
+        val velocity = arrow.velocity
+        val length = velocity.length()
+        if (length > 0) arrow.velocity = velocity.multiply(CROSSBOW_POWER / length)
+    }
+
+    private fun setFireworkVelocity(firework: Firework) {
+        val velocity = firework.velocity
+        val length = velocity.length()
+        if (length > 0) firework.velocity = velocity.multiply(CROSSBOW_POWER / length)
+    }
+
+    private fun getProjectileTypeFromMaterial(material: Material): ProjectileTypes = when (material) {
+        Material.ARROW -> ProjectileTypes.ARROW
+        Material.TIPPED_ARROW -> ProjectileTypes.TIPPED_ARROW
+        Material.SPECTRAL_ARROW -> ProjectileTypes.SPECTRAL_ARROW
+        Material.FIREWORK_ROCKET -> ProjectileTypes.FIREWORK_ROCKET
+        else -> ProjectileTypes.ARROW
+    }
+
+    private fun cancelChargeTask(playerId: UUID) {
+        chargeTasks.remove(playerId)?.cancel()
+    }
+
+    private fun clearCrossbowState(itemStack: ItemStack) {
+        setProjectileData(itemStack, ProjectileTypes.NONE)
+        clearStoredArrow(itemStack)
+    }
+
+    private fun getProjectileData(itemStack: ItemStack): ProjectileTypes? = itemStack.retrieveData(CHARGE_KEY)
+    private fun setProjectileData(itemStack: ItemStack, type: ProjectileTypes) = itemStack.storeData(CHARGE_KEY, type)
+    private fun getStoredArrow(itemStack: ItemStack): ItemStack? = itemStack.retrieveData(STORED_ARROW_KEY)
+    private fun setStoredArrow(itemStack: ItemStack, arrow: ItemStack) = itemStack.storeData(STORED_ARROW_KEY, arrow)
+    private fun clearStoredArrow(itemStack: ItemStack) = itemStack.storeData(STORED_ARROW_KEY, null)
 }

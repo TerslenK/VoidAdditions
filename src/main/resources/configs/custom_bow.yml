@@ -1,0 +1,16 @@
+# Damageable Options
+durability: 128
+item_damage_on_attack_entity: 1
+item_damage_on_break_block: 1
+repair_ingredient: "minecraft:string"
+# Fuel Option
+burn_time: 30
+# Enchantable Options
+enchantment_value: 14
+supported_enchantments:
+  - "minecraft:infinity"
+  - "minecraft:power"
+  - "minecraft:punch"
+  - "minecraft:flame"
+  - "minecraft:unbreaking"
+  - "minecraft:mending"

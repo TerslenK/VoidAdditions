@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:item/shield_base",
+	"textures": {
+		"layer0": "item/custom_shield/shield"
+	}
+}

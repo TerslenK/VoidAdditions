@@ -6,6 +6,7 @@ import org.bukkit.attribute.Attribute
 import org.bukkit.attribute.AttributeModifier
 import org.bukkit.entity.Player
 import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import xyz.xenondevs.commons.provider.Provider
 import xyz.xenondevs.nova.config.Configs
@@ -170,6 +171,73 @@ object VoidUtils {
         return newSet
     }
 
+    fun getArrow(player: Player,type: String): ItemStack? {
+        val inv = player.inventory
+
+        // Check offhand first
+        val offhandItem = inv.itemInOffHand
+        if (checkProjectile(offhandItem, type)) {
+            val cloned = offhandItem.clone()
+            cloned.amount = 1
+            return cloned
+        }
+
+        // Then check main inventory (0 to size-1)
+        for (i in 0 until inv.size) {
+            val item = inv.getItem(i) ?: continue
+            if (!checkProjectile(item, type)) continue
+
+            val cloned = item.clone()
+            cloned.amount = 1
+            return cloned
+        }
+
+        return null
+    }
+
+    fun removeArrow(player: Player,itemStack: ItemStack,type: String,remove: Boolean): Boolean {
+        val inv = player.inventory
+
+        // Check offhand first
+        val offhandItem = inv.itemInOffHand
+        if (checkProjectile(offhandItem, type)) {
+            if (remove) {
+                offhandItem.amount -= 1
+                if (offhandItem.amount <= 0) {
+                    inv.setItemInOffHand(null)
+                }
+            }
+            return true
+        }
+
+        // Then check main inventory (0 to size-1)
+        for (i in 0 until inv.size) {
+            val item = inv.getItem(i) ?: continue
+            if (!checkProjectile(item, type)) continue
+
+            if (remove) {
+                item.amount -= 1
+                if (item.amount <= 0) {
+                    inv.setItem(i, null)
+                }
+            }
+            return true
+        }
+
+        return false
+    }
+
+    fun checkProjectile(item: ItemStack, vararg: String): Boolean {
+        return when (vararg) {
+            "BOW" -> {
+                item.type == Material.ARROW || item.type == Material.SPECTRAL_ARROW || item.type == Material.TIPPED_ARROW
+            }
+            "CROSSBOW" -> {
+                item.type == Material.ARROW || item.type == Material.SPECTRAL_ARROW || item.type == Material.TIPPED_ARROW || item.type == Material.FIREWORK_ROCKET
+            }
+            else -> false
+        }
+    }
 
     /**
      * Converts any object to a string if possible.
