@@ -9,14 +9,16 @@ import io.github.terslenk.voidadditions.implementations.abilities.LimitedMiningA
 import io.github.terslenk.voidadditions.implementations.behaviors.CavemanTool
 import io.github.terslenk.voidadditions.implementations.behaviors.CrossbowBehavior
 import io.github.terslenk.voidadditions.implementations.behaviors.BowBehavior
-import io.papermc.paper.registry.keys.SoundEventKeys
-import org.bukkit.enchantments.Enchantment
-import org.bukkit.inventory.RecipeChoice
-import xyz.xenondevs.commons.provider.Provider
+import io.github.terslenk.voidadditions.implementations.network.StressHolder
+import io.github.terslenk.voidadditions.implementations.network.StressNetwork
+import io.github.terslenk.voidadditions.implementations.network.StressNetworkGroup
+import xyz.xenondevs.commons.provider.provider
 import xyz.xenondevs.nova.initialize.Init
 import xyz.xenondevs.nova.initialize.InitStage
+import xyz.xenondevs.nova.resources.builder.layout.item.ChargedType
 import xyz.xenondevs.nova.resources.builder.layout.item.ConditionItemModelProperty
 import xyz.xenondevs.nova.resources.builder.layout.item.RangeDispatchItemModelProperty
+import xyz.xenondevs.nova.resources.builder.layout.item.SelectItemModelProperty
 import xyz.xenondevs.nova.world.item.behavior.Damageable
 import xyz.xenondevs.nova.world.item.behavior.Enchantable
 import xyz.xenondevs.nova.world.item.behavior.Fuel
@@ -67,13 +69,17 @@ object VoidItems {
 
     val CUSTOM_CROSSBOW = VoidAdditions.item("custom_crossbow") {
         modelDefinition {
-            model = condition(ConditionItemModelProperty.UsingItem) {
-                onFalse = buildModel { getModel("item/custom_crossbow/crossbow_standby") }
-                onTrue = rangeDispatch(RangeDispatchItemModelProperty.UseDuration(false)) {
-                    entry[20] = { getModel("item/custom_crossbow/crossbow_pulling_2") }
-                    entry[10] = { getModel("item/custom_crossbow/crossbow_pulling_1") }
-                    entry[0] = { getModel("item/custom_crossbow/crossbow_pulling_0") }
+            model = select(SelectItemModelProperty.ChargedType) {
+                case[ChargedType.NONE] = condition(ConditionItemModelProperty.UsingItem) {
+                    onFalse = buildModel { getModel("item/custom_crossbow/crossbow_standby") }
+                    onTrue = rangeDispatch(RangeDispatchItemModelProperty.UseDuration(false)) {
+                        entry[20] = { getModel("item/custom_crossbow/crossbow_pulling_2") }
+                        entry[10] = { getModel("item/custom_crossbow/crossbow_pulling_1") }
+                        entry[0] = { getModel("item/custom_crossbow/crossbow_pulling_0") }
+                    }
                 }
+                case[ChargedType.ARROW] = { getModel("item/custom_crossbow/crossbow_arrow") }
+                case[ChargedType.ROCKET] = { getModel("item/custom_crossbow/crossbow_firework") }
             }
         }
         behaviors(
@@ -106,4 +112,13 @@ object VoidAbilities {
 }
 
 @Init(stage = InitStage.PRE_PACK)
-object VoidCategory
+object VoidNetwork {
+    val STRESS_NETWORK = VoidAdditions.registerNetworkType(
+        name = "stress_network",
+        createNetwork = ::StressNetwork,
+        createGroup = ::StressNetworkGroup,
+        validateLocal = StressNetwork::validateLocal,
+        tickDelay = provider(5),
+        holderTypes = arrayOf(StressHolder::class)
+    )
+}

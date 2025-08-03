@@ -171,12 +171,15 @@ object VoidUtils {
         return newSet
     }
 
-    fun getArrow(player: Player,type: String): ItemStack? {
+    /**
+       Detects the items from the item list and returns the item from the inventory if it is found. Else returns null
+     */
+    fun getItem(player: Player, itemList: MutableList<Material>): ItemStack? {
         val inv = player.inventory
 
         // Check offhand first
         val offhandItem = inv.itemInOffHand
-        if (checkProjectile(offhandItem, type)) {
+        if (itemList.contains(offhandItem.type)) {
             val cloned = offhandItem.clone()
             cloned.amount = 1
             return cloned
@@ -185,7 +188,7 @@ object VoidUtils {
         // Then check main inventory (0 to size-1)
         for (i in 0 until inv.size) {
             val item = inv.getItem(i) ?: continue
-            if (!checkProjectile(item, type)) continue
+            if (!itemList.contains(item.type)) continue
 
             val cloned = item.clone()
             cloned.amount = 1
@@ -195,12 +198,12 @@ object VoidUtils {
         return null
     }
 
-    fun removeArrow(player: Player,itemStack: ItemStack,type: String,remove: Boolean): Boolean {
+    fun removeItem(player: Player, itemStack: ItemStack, itemList: MutableList<Material>, remove: Boolean): Boolean {
         val inv = player.inventory
 
         // Check offhand first
         val offhandItem = inv.itemInOffHand
-        if (checkProjectile(offhandItem, type)) {
+        if (itemList.contains(offhandItem.type)) {
             if (remove) {
                 offhandItem.amount -= 1
                 if (offhandItem.amount <= 0) {
@@ -213,7 +216,7 @@ object VoidUtils {
         // Then check main inventory (0 to size-1)
         for (i in 0 until inv.size) {
             val item = inv.getItem(i) ?: continue
-            if (!checkProjectile(item, type)) continue
+            if (!itemList.contains(item.type)) continue
 
             if (remove) {
                 item.amount -= 1
@@ -223,20 +226,7 @@ object VoidUtils {
             }
             return true
         }
-
         return false
-    }
-
-    fun checkProjectile(item: ItemStack, vararg: String): Boolean {
-        return when (vararg) {
-            "BOW" -> {
-                item.type == Material.ARROW || item.type == Material.SPECTRAL_ARROW || item.type == Material.TIPPED_ARROW
-            }
-            "CROSSBOW" -> {
-                item.type == Material.ARROW || item.type == Material.SPECTRAL_ARROW || item.type == Material.TIPPED_ARROW || item.type == Material.FIREWORK_ROCKET
-            }
-            else -> false
-        }
     }
 
     /**

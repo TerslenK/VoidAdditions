@@ -13,9 +13,7 @@ import xyz.xenondevs.nova.world.item.NovaItem
 import xyz.xenondevs.nova.world.item.behavior.ItemBehavior
 import xyz.xenondevs.nova.world.item.behavior.ItemBehaviorFactory
 import xyz.xenondevs.nova.world.player.WrappedPlayerInteractEvent
-import java.util.UUID
 import kotlin.math.round
-import kotlin.uuid.Uuid
 
 class CavemanTool : ItemBehavior {
     
