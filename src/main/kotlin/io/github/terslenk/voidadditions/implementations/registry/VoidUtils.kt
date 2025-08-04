@@ -174,7 +174,7 @@ object VoidUtils {
     /**
        Detects the items from the item list and returns the item from the inventory if it is found. Else returns null
      */
-    fun getItem(player: Player, itemList: MutableList<Material>): ItemStack? {
+    fun getItem(player: Player, itemList: List<Material>): ItemStack? {
         val inv = player.inventory
 
         // Check offhand first
@@ -198,7 +198,7 @@ object VoidUtils {
         return null
     }
 
-    fun removeItem(player: Player, itemStack: ItemStack, itemList: MutableList<Material>, remove: Boolean): Boolean {
+    fun removeItem(player: Player, itemStack: ItemStack, itemList: List<Material>, remove: Boolean): Boolean {
         val inv = player.inventory
 
         // Check offhand first

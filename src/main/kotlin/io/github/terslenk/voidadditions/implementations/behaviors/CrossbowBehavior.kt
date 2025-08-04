@@ -5,6 +5,7 @@ import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.datacomponent.item.ChargedProjectiles
 import io.papermc.paper.datacomponent.item.Consumable
 import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation
+import io.papermc.paper.event.entity.EntityEquipmentChangedEvent
 import io.papermc.paper.registry.keys.SoundEventKeys
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket
 import org.bukkit.GameMode
@@ -18,6 +19,7 @@ import org.bukkit.entity.SpectralArrow
 import org.bukkit.entity.TNTPrimed
 import org.bukkit.entity.Trident
 import org.bukkit.event.block.Action
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.FireworkMeta
 import org.bukkit.inventory.meta.PotionMeta
@@ -54,14 +56,11 @@ class CrossbowBehavior : ItemBehavior {
         private const val TNT_FUSE_TICKS = 60 // 3 seconds
         private const val TNT_LAUNCH_SPEED = 3.0
         private const val MULTISHOT_SPREAD = 10.0
-        private val CROSSBOW_AMMO = mutableListOf(
+        private val CROSSBOW_AMMO = listOf(
             Material.ARROW,
             Material.TIPPED_ARROW,
             Material.SPECTRAL_ARROW,
-            Material.FIREWORK_ROCKET,
-            Material.TNT,
-            Material.TRIDENT,
-            Material.EGG
+            Material.FIREWORK_ROCKET
         )
     }
 
@@ -150,7 +149,13 @@ class CrossbowBehavior : ItemBehavior {
         return directions
     }
 
-    override fun handleInventoryTick(player: Player, itemStack: ItemStack, slot: Int) {
+    override fun handleEquip(
+        player: Player,
+        itemStack: ItemStack,
+        slot: EquipmentSlot,
+        equipped: Boolean,
+        event: EntityEquipmentChangedEvent
+    ) {
         if (VoidUtils.getItem(player, CROSSBOW_AMMO) != null && itemStack.getData(DataComponentTypes.CHARGED_PROJECTILES) == null) {
             itemStack.setData(DataComponentTypes.CONSUMABLE, Consumable.consumable()
                 .animation(ItemUseAnimation.CROSSBOW)
@@ -224,19 +229,6 @@ class CrossbowBehavior : ItemBehavior {
 
                         directions.forEach { direction ->
                             when (projectileItem.type) {
-                                Material.EGG -> {
-                                    val projectile = player.launchProjectile(Egg::class.java)
-                                    projectile.velocity = direction.multiply(PROJECTILE_VELOCITY)
-                                }
-                                Material.SNOWBALL -> {
-                                    val projectile = player.launchProjectile(Snowball::class.java)
-                                    projectile.velocity = direction.multiply(PROJECTILE_VELOCITY)
-                                }
-                                Material.TRIDENT -> {
-                                    val projectile = player.launchProjectile(Trident::class.java)
-                                    projectile.itemStack.itemMeta = projectileItem.itemMeta
-                                    projectile.velocity = direction.multiply(PROJECTILE_VELOCITY)
-                                }
                                 Material.ARROW -> {
                                     val projectile = player.launchProjectile(Arrow::class.java)
                                     projectile.velocity = direction.multiply(ARROW_VELOCITY)
@@ -299,11 +291,6 @@ class CrossbowBehavior : ItemBehavior {
                                     // Some servers have this method
                                     projectile.itemStack = fireworkItem
                                     projectile.velocity = direction.multiply(FIREWORK_VELOCITY)
-                                }
-                                Material.TNT -> {
-                                    val tnt = player.world.spawn(player.eyeLocation, TNTPrimed::class.java)
-                                    tnt.fuseTicks = TNT_FUSE_TICKS
-                                    tnt.velocity = direction.multiply(TNT_LAUNCH_SPEED)
                                 }
                                 else -> println("${player.name} tried to launch ${projectileItem.type.name.lowercase()}, but it hasn't been implemented yet.")
                             }

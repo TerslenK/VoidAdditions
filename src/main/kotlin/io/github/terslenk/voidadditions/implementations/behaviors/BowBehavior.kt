@@ -14,9 +14,14 @@ import org.bukkit.entity.AbstractArrow
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.SpectralArrow
+import org.bukkit.entity.LivingEntity
 import org.bukkit.event.block.Action
+import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.PotionMeta
+import org.bukkit.util.Vector
 import xyz.xenondevs.nova.network.event.serverbound.ServerboundPlayerActionPacketEvent
 import xyz.xenondevs.nova.util.item.damage
 import xyz.xenondevs.nova.util.playSoundNearby
@@ -27,6 +32,7 @@ import xyz.xenondevs.nova.world.item.behavior.ItemBehaviorFactory
 import xyz.xenondevs.nova.world.player.WrappedPlayerInteractEvent
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.random.Random
 
 /**
  * Custom bow behavior implementation that handles bow mechanics including:
@@ -34,8 +40,9 @@ import java.util.concurrent.ConcurrentHashMap
  * - Arrow consumption with infinity enchantment support
  * - Different arrow types (normal, spectral, tipped)
  * - Proper pickup status handling
+ * - Full enchantment support (Power, Punch, Flame, Infinity, Unbreaking)
  */
-class BowBehavior : ItemBehavior {
+class BowBehavior : ItemBehavior, Listener {
 
     // Thread-safe map for multiplayer environments
     private val playerDrawTimes = ConcurrentHashMap<UUID, Long>()
@@ -44,7 +51,7 @@ class BowBehavior : ItemBehavior {
         override fun create(item: NovaItem) = BowBehavior()
 
         // Immutable set for better performance on lookups
-        private val SUPPORTED_ARROWS = mutableListOf<Material>(
+        private val SUPPORTED_ARROWS = setOf(
             Material.ARROW,
             Material.TIPPED_ARROW,
             Material.SPECTRAL_ARROW
@@ -55,6 +62,11 @@ class BowBehavior : ItemBehavior {
         private const val MAX_POWER_MULTIPLIER = 4.0
         private const val MIN_DRAW_TIME = 0.5
         private const val MAX_CONSUME_SECONDS = Float.MAX_VALUE
+
+        // Enchantment constants
+        private const val POWER_DAMAGE_MULTIPLIER = 0.5
+        private const val POWER_BASE_BONUS = 0.5
+        private const val PUNCH_KNOCKBACK_MULTIPLIER = 0.5
     }
 
     override fun handleInteract(
@@ -104,6 +116,7 @@ class BowBehavior : ItemBehavior {
         // Shoot the arrow asynchronously to avoid blocking
         runTask {
             shootArrow(player, itemStack, arrowItem, powerMultiplier, shouldConsumeArrow)
+            handleUnbreakingDurability(player, itemStack)
         }
 
         cleanupPlayerState(player)
@@ -158,6 +171,7 @@ class BowBehavior : ItemBehavior {
         val hasInfinity = bow.enchantments.containsKey(Enchantment.INFINITY)
         val isRegularArrow = arrowItem?.type == Material.ARROW
 
+        // Infinity only works with regular arrows, not tipped or spectral arrows
         return !(hasInfinity && isRegularArrow)
     }
 
@@ -173,15 +187,80 @@ class BowBehavior : ItemBehavior {
     ) {
         val arrow = createArrow(player, arrowItem, shouldConsumeArrow)
 
+        // Apply enchantment effects
+        applyEnchantmentEffects(bow, arrow, powerMultiplier)
+
         // Set arrow properties
-        arrow.velocity = player.location.direction.multiply(powerMultiplier)
+        arrow.velocity = calculateArrowVelocity(player, bow, powerMultiplier)
         arrow.shooter = player
 
         // Play shooting sound
         player.location.playSoundNearby(Sound.ENTITY_ARROW_SHOOT, 1f, 1f)
+    }
 
-        // Damage bow in survival mode
-        if (player.gameMode != GameMode.CREATIVE) {
+    /**
+     * Applies all bow enchantment effects to the arrow
+     */
+    private fun applyEnchantmentEffects(bow: ItemStack, arrow: AbstractArrow, powerMultiplier: Double) {
+        val enchantments = bow.enchantments
+
+        // Store Power enchantment level for damage calculation in hit event
+        enchantments[Enchantment.POWER]?.let { level ->
+            arrow.setMetadata("power_level", org.bukkit.metadata.FixedMetadataValue(
+                org.bukkit.Bukkit.getPluginManager().plugins.first(), level
+            ))
+        }
+
+        // Store Punch enchantment level for knockback calculation in hit event
+        enchantments[Enchantment.PUNCH]?.let { level ->
+            arrow.setMetadata("punch_level", org.bukkit.metadata.FixedMetadataValue(
+                org.bukkit.Bukkit.getPluginManager().plugins.first(), level
+            ))
+        }
+
+        // Apply Flame enchantment (sets arrow on fire)
+        if (enchantments.containsKey(Enchantment.FLAME)) {
+            arrow.fireTicks = 100 // 5 seconds of fire
+            // Set targets on fire when hit
+            arrow.setMetadata("flame_enchanted", org.bukkit.metadata.FixedMetadataValue(
+                org.bukkit.Bukkit.getPluginManager().plugins.first(), true
+            ))
+        }
+    }
+
+    /**
+     * Calculates arrow velocity including Power enchantment effects
+     */
+    private fun calculateArrowVelocity(player: Player, bow: ItemStack, powerMultiplier: Double): Vector {
+        val baseVelocity = player.location.direction.multiply(powerMultiplier)
+
+        // Power enchantment also affects velocity slightly
+        val powerLevel = bow.enchantments[Enchantment.POWER] ?: 0
+        val velocityMultiplier = 1.0 + (powerLevel * 0.1) // 10% increase per level
+
+        return baseVelocity.multiply(velocityMultiplier)
+    }
+
+    /**
+     * Handles Unbreaking enchantment for bow durability
+     */
+    private fun handleUnbreakingDurability(player: Player, bow: ItemStack) {
+        if (player.gameMode == GameMode.CREATIVE) return
+
+        val unbreakingLevel = bow.enchantments[Enchantment.UNBREAKING] ?: 0
+
+        if (unbreakingLevel > 0) {
+            // Unbreaking has a chance to not consume durability
+            // Formula: 100 / (level + 1) percent chance to take damage
+            val damageChance = 100.0 / (unbreakingLevel + 1)
+            val randomValue = Random.nextDouble(0.0, 100.0)
+
+            if (randomValue <= damageChance) {
+                bow.damage(1, player.world)
+            }
+            // If randomValue > damageChance, durability is not consumed
+        } else {
+            // No unbreaking, always take damage
             bow.damage(1, player.world)
         }
     }
@@ -263,5 +342,41 @@ class BowBehavior : ItemBehavior {
      */
     private fun cleanupPlayerState(player: Player) {
         playerDrawTimes.remove(player.uniqueId)
+    }
+
+    /**
+     * Handles flame enchantment effects and punch knockback when arrows hit entities
+     */
+    @EventHandler
+    fun onArrowHit(event: EntityDamageByEntityEvent) {
+        val arrow = event.damager as? AbstractArrow ?: return
+        val target = event.entity as? LivingEntity ?: return
+
+        // Handle Power enchantment damage bonus
+        if (arrow.hasMetadata("power_level")) {
+            val powerLevel = arrow.getMetadata("power_level").firstOrNull()?.asInt() ?: 0
+            if (powerLevel > 0) {
+                val damageBonus = POWER_BASE_BONUS + (powerLevel * POWER_DAMAGE_MULTIPLIER)
+                event.damage = event.damage + damageBonus
+            }
+        }
+
+        // Handle Flame enchantment
+        if (arrow.hasMetadata("flame_enchanted")) {
+            target.fireTicks = 100 // Set target on fire for 5 seconds
+        }
+
+        // Handle Punch enchantment knockback
+        if (arrow.hasMetadata("punch_level")) {
+            val punchLevel = arrow.getMetadata("punch_level").firstOrNull()?.asInt() ?: 0
+            if (punchLevel > 0) {
+                // Calculate knockback direction (from arrow to target)
+                val knockbackDirection = target.location.subtract(arrow.location).toVector().normalize()
+                val knockbackStrength = punchLevel * PUNCH_KNOCKBACK_MULTIPLIER
+
+                // Apply knockback velocity
+                target.velocity = target.velocity.add(knockbackDirection.multiply(knockbackStrength))
+            }
+        }
     }
 }
